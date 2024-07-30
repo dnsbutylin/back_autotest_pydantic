@@ -1,6 +1,6 @@
 # Backend autotests
 
-API тесты OLA
+API тесты
 
 ## Зависимости
 
