@@ -1,4 +1,4 @@
-# OLA Backend autotests
+# Backend autotests
 
 API тесты OLA
 
