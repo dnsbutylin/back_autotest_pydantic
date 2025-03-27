@@ -8,14 +8,18 @@ from enum import StrEnum
 from json import loads
 from typing import Any, Callable, Final, Self
 
-import marshmallow_dataclass
 from box import Box, BoxList
+
+# import marshmallow_dataclass
+from pydantic import BaseModel, ValidationError
 from requests import Response
 
 from src.cases import step
-from src.schemas import Schema
 
 from ._session import Session
+
+# from src.schemas import Schema
+
 
 logger = logging.getLogger(__package__)
 
@@ -68,7 +72,7 @@ class WaitRequest:
         status: int,
         *,
         handler: Callable[[Response], Any] | str | None = Handler.json,
-        schema: type[Schema] | list[type[Schema]] | None = None,
+        schema: type[BaseModel] | list[type[BaseModel]] | None = None,
         step_name: str | None = None,
         return_result: bool = False,
     ) -> Any:
@@ -193,7 +197,7 @@ class Request:
         status: int,
         *,
         handler: Callable[[Response], Any] | str | None = Handler.json,
-        schema: type[Schema] | list[type[Schema]] | None = None,
+        schema: type[BaseModel] | list[type[BaseModel]] | None = None,
         step_name: str | None = None,
     ) -> Any:
         """
@@ -226,18 +230,19 @@ class Request:
             return response
 
     @staticmethod
-    def __validator(data: Any, schema: Any) -> Schema:
+    def __validator(data: Any, schema: BaseModel | list[BaseModel]) -> None:
         """Schema validator"""
-        schema_many = isinstance(schema, (list, tuple))
-        _schema = schema[0] if schema_many else schema
-        if not is_dataclass(_schema):
-            raise ValueError("Schema is not dataclass")
-        name = f"list[{_schema.__name__}]" if schema_many else _schema.__name__  # noqa
-        new_schema = marshmallow_dataclass.class_schema(_schema)
-        logger.debug(f"Response validate: {name}")
+        if isinstance(data, Box):
+            data = data.to_dict()
+        elif isinstance(data, BoxList):
+            data = [item.to_dict() for item in data]
+        elif isinstance(data, Response):
+            data = data.json()
         try:
-            with step(f"Валидация ответа по схеме: {name}"):
-                return new_schema().load(data, many=schema_many)
-        except Exception as error:
-            logger.error(error)
-            raise
+            schema(**data)
+        except ValidationError as e:
+            for error in e.errors():
+                field = error.get("loc", ["unknown"])[0]
+                error_type = error.get("type", "unknown")
+                message = error.get("msg", "unknown error")
+                print(f"Ошибка в поле '{field}': {message} (тип ошибки: {error_type})")

@@ -1,13 +1,9 @@
 """Модуль реализующий API клиенты"""
 
 from ._request import Handler
-from .keycloak.keycloak import KeycloakClient
-from .ola import OlaClient
-from .spark import SparkClient
+from .users.users import UsersClient
 
 __all__ = [
     "Handler",
-    "KeycloakClient",
-    "OlaClient",
-    "SparkClient",
+    "UsersClient",
 ]
