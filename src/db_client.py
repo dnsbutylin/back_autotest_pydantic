@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from src.models import Contract
+from src.models import OrderResponse, UserResponse
 
 logger = logging.getLogger(__name__)
 
@@ -80,14 +80,14 @@ class DataBaseClient(DataBaseMeta):
     """Клиент БД"""
 
     @allure.step("Получить пользователя из базы данных по ID")
-    def get_user_by_id(self, user_id: int) -> Contract:
+    def get_user_by_id(self, user_id: int) -> UserResponse:
         """Получить пользователя из базы данных по ID"""
         statement = "SELECT id, username, email, age FROM users WHERE id=:id"
         try:
             result = self.fetchone(statement, {"id": user_id})
             if result is None:
                 raise ValueError(f"User with ID {user_id} not found in the database.")
-            return Contract.from_db_tuple(result, Contract.USER_ROW)
+            return UserResponse.from_db_tuple(result)
         except SQLAlchemyError as err:
             logger.error(f"Error fetching user by ID: {err}")
             raise err
@@ -96,14 +96,14 @@ class DataBaseClient(DataBaseMeta):
             raise err
 
     @allure.step("Получить заказ из базы данных по ID")
-    def get_order_by_id(self, order_id: int) -> Contract:
+    def get_order_by_id(self, order_id: int) -> OrderResponse:
         """Получить заказ из базы данных по ID"""
         statement = "SELECT id, user_id, product_name, quantity FROM orders WHERE id=:id"
         try:
             result = self.fetchone(statement, {"id": order_id})
             if result is None:
                 raise ValueError(f"Order with ID {order_id} not found in the database.")
-            return Contract.from_db_tuple(result, Contract.ORDER_ROW)
+            return OrderResponse.from_db_tuple(result)
         except SQLAlchemyError as err:
             logger.error(f"Error fetching order by ID: {err}")
             raise err

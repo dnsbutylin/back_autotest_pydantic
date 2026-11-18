@@ -3,7 +3,7 @@ from http import HTTPStatus
 from clients import UsersClient
 from src.cases import case, step
 from src.db_client import DataBaseClient
-from src.models import Contract
+from src.models import OrderResponse, UserError, UserResponse
 
 
 @case(id=1001, title="Проверка создания пользователя и сохранения данных в БД")
@@ -12,7 +12,7 @@ def test_creating_user_and_saving_to_db(
     db_client: DataBaseClient,
 ):
     """Тест на создание пользователя через API и проверку сохранения данных в БД"""
-    user_data = Contract.user()
+    user_data = UserResponse.generate()
     with step("Создать пользователя через API"):
         request = not_authorize_users_client.post.create_user.body(
             _data=user_data,
@@ -20,15 +20,15 @@ def test_creating_user_and_saving_to_db(
         request(
             status=HTTPStatus.CREATED,
             step_name="Создать пользователя",
-            schema=Contract,
+            schema=UserResponse,
             handler=None,
         )
 
     with step("Проверить, что пользователь сохранен в базе данных"):
         # Данные из БД возвращаются в виде кортежа
         user_from_db = (11, "john_doe", "john@example.com", 25)
-        db_user = Contract.from_db_tuple(user_from_db, Contract.USER_ROW)
-        assert db_user.matches(user_data, "username", "email", "age")
+        db_user = UserResponse.from_db_tuple(user_from_db)
+        assert db_user.model_dump(exclude={"id"}) == user_data.model_dump(exclude={"id"})
 
 
 @case(id=1002, title="Проверка обработки ошибки при создании пользователя с дублирующимся username")
@@ -38,7 +38,7 @@ def test_creating_user_with_duplicate_username(
 ):
     """Тест на обработку ошибки при создании пользователя с дублирующимся username"""
 
-    user_data = Contract.user()
+    user_data = UserResponse.generate()
     with step("Создать пользователя через API"):
         request = not_authorize_users_client.post.create_user.body(
             _data=user_data,
@@ -46,7 +46,7 @@ def test_creating_user_with_duplicate_username(
         request(
             status=HTTPStatus.CREATED,
             step_name="Создать пользователя",
-            schema=Contract,
+            schema=UserResponse,
             handler=None,
         )
 
@@ -58,12 +58,12 @@ def test_creating_user_with_duplicate_username(
         response = request(
             status=HTTPStatus.BAD_REQUEST,
             step_name="Создать пользователя с дублирующимся username",
-            schema=Contract,
+            schema=UserError,
             handler=None,
         )
 
     with step("Проверить, что ошибка корректно обработана"):
-        error = Contract.model_validate(response.json())
+        error = UserError.model_validate(response.json())
         assert error.error == "Username already exists", (
             f"Expected error message: 'Username already exists', Got: {error.error}"
         )
@@ -76,7 +76,7 @@ def test_creating_order(
 ):
     """Тест на создание заказа через API и проверку сохранения данных в БД"""
 
-    order_data = Contract.order(
+    order_data = OrderResponse.generate(
         user_id=1,
     )
     with step("Создать заказ через API"):
@@ -86,13 +86,13 @@ def test_creating_order(
         request(
             status=HTTPStatus.CREATED,
             step_name="Создать заказ",
-            schema=Contract,
+            schema=OrderResponse,
             handler=None,
         )
 
     with step("Проверить, что заказ сохранен в базе данных"):
         order_from_db = db_client.get_order_by_id(1)
-        assert order_from_db.matches(order_data, "user_id", "product_name", "quantity")
+        assert order_from_db.model_dump(exclude={"id"}) == order_data.model_dump(exclude={"id"})
 
 
 @case(id=1004, title="Проверка получения информации о пользователе по ID")
@@ -109,10 +109,10 @@ def test_get_user_by_id(
         response = request(
             status=HTTPStatus.OK,
             step_name="Получить информацию о пользователе",
-            schema=Contract,
+            schema=UserResponse,
             handler=None,
         )
-        user_data = Contract.model_validate(response.json())
+        user_data = UserResponse.model_validate(response.json())
 
     with step("Проверить, что данные пользователя корректны"):
         user_from_db = db_client.get_user_by_id(user_id)
@@ -133,10 +133,10 @@ def test_get_order_by_id(
         response = request(
             status=HTTPStatus.OK,
             step_name="Получить информацию о заказе",
-            schema=Contract,
+            schema=OrderResponse,
             handler=None,
         )
-        order_data = Contract.model_validate(response.json())
+        order_data = OrderResponse.model_validate(response.json())
 
     with step("Проверить, что данные заказа корректны"):
         order_from_db = db_client.get_order_by_id(order_id)
