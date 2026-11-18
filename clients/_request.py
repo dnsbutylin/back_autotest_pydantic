@@ -174,6 +174,9 @@ class Request:
         arg = self._args.setdefault("json", {})
         if is_dataclass(_data):
             arg.update(_data.as_dict() if hasattr(_data, "as_dict") else asdict(_data))
+        elif isinstance(_data, BaseModel):
+            payload = _data.payload() if hasattr(_data, "payload") else _data.model_dump(exclude_none=True)
+            arg.update(payload)
         elif isinstance(_data, dict):
             arg.update(_data)
         arg.update(kwargs)
